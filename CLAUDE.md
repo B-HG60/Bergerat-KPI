@@ -6,49 +6,105 @@ Ce fichier fournit les informations essentielles sur le dépôt **Bergerat-KPI**
 
 ## État actuel du projet
 
-> **Statut : Initialisation**
-> Le dépôt est en phase de démarrage. Aucun stack technique ni code source n'ont encore été définis.
+> **Statut : Application complète — prête pour déploiement**
+> Frontend React + Backend Express + base PostgreSQL avec Docker.
 
-### Structure actuelle
+### Structure du projet
 
 ```
 Bergerat-KPI/
-├── CLAUDE.md       ← ce fichier
-└── README.md       ← titre du projet uniquement
+├── client/                   # Frontend React + TypeScript + Tailwind
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ui/           # Composants shadcn/ui (Button, Card, Input, Badge, Toast)
+│   │   │   └── layout/       # AppLayout, Sidebar, Header
+│   │   ├── contexts/         # AuthContext (auth + rôles)
+│   │   ├── lib/              # api.ts (client HTTP), utils.ts
+│   │   ├── pages/            # LoginPage, DashboardPage, AttendancePage, SectionsPage,
+│   │   │                     # TeamPage, AdminOverviewPage, AdminUsersPage
+│   │   └── types/            # Types TypeScript partagés
+│   ├── index.html
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   ├── nginx.conf            # Config Nginx pour Docker
+│   └── Dockerfile
+├── server/                   # Backend Express + TypeScript
+│   ├── src/
+│   │   ├── routes/           # auth, users, kpi, attendance, sections, admin
+│   │   ├── middleware/       # auth.ts (JWT + authorize), errorHandler.ts
+│   │   ├── services/         # prisma.ts (client Prisma)
+│   │   ├── validators/       # Schémas Zod pour validation entrées
+│   │   ├── seed.ts           # Données initiales (comptes démo + KPIs par défaut)
+│   │   └── index.ts          # Point d'entrée Express
+│   ├── tsconfig.json
+│   └── Dockerfile
+├── prisma/
+│   └── schema.prisma         # Modèles : User, KpiDefinition, KpiEntry, Comment,
+│                             #           Attendance, CustomSection
+├── docker-compose.yml        # PostgreSQL + server + client
+├── .env.example
+├── .gitignore
+├── CLAUDE.md                 # ← ce fichier
+└── README.md
 ```
 
 ---
 
 ## Informations générales
 
-| Champ         | Valeur                                |
-|---------------|---------------------------------------|
-| Nom           | Bergerat-KPI                          |
-| Auteur        | B-HG60 (bryanhannoque@gmail.com)      |
+| Champ              | Valeur                           |
+|--------------------|----------------------------------|
+| Nom                | Bergerat-KPI                     |
+| Client             | Bergerat Monnoyeur               |
 | Branche principale | `master`                         |
-| Langue préférée | Français                            |
-| Date de création | 2026-03-11                         |
-
----
-
-## Objectif du projet
-
-Le projet **Bergerat-KPI** vise à gérer et visualiser des indicateurs clés de performance (KPI) pour Bergerat. Le détail fonctionnel sera précisé au fur et à mesure de l'avancement du projet.
+| Langue préférée    | Français                         |
 
 ---
 
 ## Stack technique
 
-> À définir. Cette section doit être mise à jour dès que les choix technologiques sont arrêtés.
+- **Langage** : TypeScript (frontend et backend)
+- **Frontend** : React 18 + Vite + Tailwind CSS + shadcn/ui + Recharts
+- **Backend** : Node.js + Express 4
+- **BDD** : PostgreSQL 16 + Prisma ORM
+- **Auth** : JWT (bcryptjs + jsonwebtoken)
+- **Validation** : Zod
+- **Déploiement** : Docker + docker-compose + Nginx
 
-Exemples de sections à compléter :
+## Commandes utiles
 
-- **Langage** : (ex. TypeScript, Python, Go…)
-- **Framework** : (ex. Next.js, FastAPI, Django…)
-- **Base de données** : (ex. PostgreSQL, MongoDB…)
-- **ORM / Query builder** : (ex. Prisma, SQLAlchemy…)
-- **Tests** : (ex. Vitest, pytest, Jest…)
-- **CI/CD** : (ex. GitHub Actions…)
+```bash
+# Développement backend
+cd server && npm run dev          # Démarre avec tsx watch
+cd server && npm run db:seed      # Initialise les données de démo
+cd server && npx prisma studio    # Interface visuelle Prisma
+
+# Développement frontend
+cd client && npm run dev          # Vite dev server sur :5173
+
+# Docker (production)
+docker-compose up --build         # Lance tout (BDD + API + front)
+```
+
+---
+
+## Rôles et permissions
+
+| Fonctionnalité              | Admin | Manager | Collaborateur |
+|-----------------------------|-------|---------|---------------|
+| Voir les KPIs               |  oui  |   oui   |      oui      |
+| Saisir / modifier les KPIs  |  oui  |   oui   |      non      |
+| Laisser un commentaire       |  oui  |   oui   |      non      |
+| Gérer les présences          |  oui  |   oui   |      non      |
+| Ajouter/supprimer collaborateur | oui | oui   |      non      |
+| Créer une section KPI        |  oui  |   oui   |      non      |
+| Vue globale tous managers    |  oui  |   non   |      non      |
+| Export CSV                   |  oui  |   non   |      non      |
+| Gérer les utilisateurs       |  oui  |   non   |      non      |
+
+Le middleware `authorize()` dans `server/src/middleware/auth.ts` protège les routes côté API.
+Le composant `ProtectedRoute` dans `client/src/App.tsx` protège les routes côté frontend.
+Le contexte `useAuth().canEdit` conditionne l'affichage des éléments d'édition.
 
 ---
 
@@ -56,52 +112,30 @@ Exemples de sections à compléter :
 
 ### Langue
 
-- **Commentaires dans le code** : français de préférence
-- **Messages de commit** : français
-- **Noms de variables/fonctions** : anglais (convention technique universelle)
-- **Documentation (README, CLAUDE.md, etc.)** : français
+- **Messages de commit** : français, format conventionnel (`feat:`, `fix:`, `docs:`, etc.)
+- **Noms de variables/fonctions** : anglais
+- **Documentation** : français
 
-### Messages de commit
+### Architecture backend
 
-Format recommandé :
+- Chaque domaine a sa propre route dans `server/src/routes/`
+- Validation Zod dans `server/src/validators/index.ts`
+- Pas de controllers séparés — la logique est directement dans les handlers de route
+- `prisma.upsert()` utilisé pour la saisie KPI et présences (idempotent)
 
-```
-<type>: <description courte>
+### Architecture frontend
 
-[corps optionnel]
-```
-
-Types courants :
-- `feat` : nouvelle fonctionnalité
-- `fix` : correction de bug
-- `refactor` : refactorisation sans changement de comportement
-- `docs` : documentation uniquement
-- `test` : ajout ou modification de tests
-- `chore` : tâches de maintenance (config, dépendances…)
-
-Exemples :
-```
-feat: ajout du tableau de bord KPI mensuel
-fix: correction du calcul du taux de conversion
-docs: mise à jour du README avec les prérequis
-```
+- Pages dans `client/src/pages/`, une par route
+- Composants UI réutilisables dans `client/src/components/ui/` (style shadcn)
+- Client API centralisé dans `client/src/lib/api.ts` — toutes les requêtes passent par `api.*`
+- Alias `@/` configuré dans Vite pour résoudre vers `client/src/`
 
 ### Branches
 
 - Branche principale : `master`
-- Branches de travail IA : préfixe `claude/`
-- Branches de fonctionnalités : `feat/<nom-de-la-feature>`
-- Branches de correctifs : `fix/<description-du-bug>`
-
----
-
-## Workflow de développement
-
-1. Créer une branche depuis `master`
-2. Développer la fonctionnalité ou le correctif
-3. Écrire ou mettre à jour les tests correspondants
-4. Committer avec un message clair (voir conventions ci-dessus)
-5. Pousser la branche et ouvrir une Pull Request vers `master`
+- Branches IA : `claude/...`
+- Branches features : `feat/<nom>`
+- Branches fixes : `fix/<description>`
 
 ---
 
@@ -109,35 +143,26 @@ docs: mise à jour du README avec les prérequis
 
 ### À faire
 
-- Lire ce fichier en priorité avant toute intervention sur le projet
-- Respecter la langue française pour les messages de commit et la documentation
-- Mettre à jour ce fichier si la structure ou les conventions évoluent
-- Travailler sur la branche dédiée `claude/...` fournie dans le contexte de la tâche
-- Pousser les modifications avec `git push -u origin <branche>`
+- Lire ce fichier avant toute intervention
+- Respecter le français pour les commits et la documentation
+- Mettre à jour ce fichier si la structure évolue
+- Valider les données côté serveur avec Zod
+- Protéger les routes API par rôle avec `authorize()`
+- Vérifier `canEdit` côté frontend avant d'afficher des formulaires
 
 ### À ne pas faire
 
-- Ne pas pousser directement sur `master`
-- Ne pas supprimer de fichiers sans confirmation explicite
-- Ne pas introduire de dépendances non discutées
-- Ne pas créer de fichiers inutiles ou de documentation non demandée
+- Ne pas pousser sur `master` directement
+- Ne pas permettre aux collaborateurs d'écrire (même via API)
+- Ne pas exposer les mots de passe ou le JWT_SECRET
+- Ne pas créer de fichiers inutiles
 
 ### Priorités de qualité
 
-1. **Sécurité** : éviter les injections SQL, XSS, exposition de secrets
+1. **Sécurité** : pas d'injection, validation Zod, protection JWT
 2. **Lisibilité** : code clair, nommage explicite
-3. **Simplicité** : ne pas sur-ingénierer, solutions minimales et ciblées
-4. **Tests** : couvrir les cas critiques
-
----
-
-## Mise à jour de ce fichier
-
-Ce fichier doit être mis à jour à chaque évolution significative :
-- Ajout d'un nouveau stack ou outil
-- Changement de conventions
-- Ajout de scripts ou commandes utiles
-- Nouvelles instructions pour les assistants IA
+3. **Simplicité** : pas de sur-ingénierie
+4. **Cohérence** : suivre les patterns existants
 
 ---
 
