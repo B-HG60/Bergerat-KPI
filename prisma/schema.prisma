@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  COLLABORATEUR
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  CONGE
+  FORMATION
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  role      Role     @default(COLLABORATEUR)
+  position  String?
+  managerId String?  @map("manager_id")
+  manager   User?    @relation("ManagerCollaborateurs", fields: [managerId], references: [id])
+  team      User[]   @relation("ManagerCollaborateurs")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  kpiEntries      KpiEntry[]
+  comments        Comment[]
+  attendances     Attendance[]
+  customSections  CustomSection[]
+
+  @@map("users")
+}
+
+model KpiDefinition {
+  id        String  @id @default(uuid())
+  name      String
+  unit      String
+  order     Int     @default(0)
+  sectionId String? @map("section_id")
+  section   CustomSection? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  isDefault Boolean @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  entries KpiEntry[]
+
+  @@map("kpi_definitions")
+}
+
+model KpiEntry {
+  id              String   @id @default(uuid())
+  value           Float
+  date            DateTime @db.Date
+  kpiDefinitionId String   @map("kpi_definition_id")
+  kpiDefinition   KpiDefinition @relation(fields: [kpiDefinitionId], references: [id], onDelete: Cascade)
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  comments Comment[]
+
+  @@unique([date, kpiDefinitionId, userId])
+  @@map("kpi_entries")
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  text       String   @db.VarChar(500)
+  kpiEntryId String   @map("kpi_entry_id")
+  kpiEntry   KpiEntry @relation(fields: [kpiEntryId], references: [id], onDelete: Cascade)
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("comments")
+}
+
+model Attendance {
+  id     String           @id @default(uuid())
+  date   DateTime         @db.Date
+  status AttendanceStatus
+  userId String           @map("user_id")
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([date, userId])
+  @@map("attendances")
+}
+
+model CustomSection {
+  id        String   @id @default(uuid())
+  name      String
+  hidden    Boolean  @default(false)
+  createdBy String   @map("created_by")
+  creator   User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  kpiDefinitions KpiDefinition[]
+
+  @@map("custom_sections")
+}
