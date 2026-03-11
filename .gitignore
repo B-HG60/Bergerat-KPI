@@ -10,3 +10,4 @@ server/dist/
 # Fichiers auto-générés par Prisma à la racine
 /package.json
 /package-lock.json
+*.tsbuildinfo
